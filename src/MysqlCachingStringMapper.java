@@ -60,13 +60,13 @@ public class MysqlCachingStringMapper implements CachingDataMapper<String> {
                 Long id = resultSet.getLong(1);
                 String value = resultSet.getString(2);
                 localCache.put(id,value);
-                // теперь локальный кэш содержит полную версию БД
-                return Collections.unmodifiableMap(localCache);
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
+        // теперь локальный кэш содержит полную версию БД
+        return Collections.unmodifiableMap(localCache);
     }
 
     @Override
@@ -92,7 +92,7 @@ public class MysqlCachingStringMapper implements CachingDataMapper<String> {
     public long persist(String s) {
         try(
         PreparedStatement ps = connection.prepareStatement(String.format(
-                "INSERT INTO %s (`id`, `value`) VALUES (?, ?);",tableName));
+                "INSERT INTO %s (`id`, `value`) VALUES (?, ?);",tableName))
         ) {
             ps.setLong(1, nextFreeId);
             ps.setString(2,s);
@@ -112,7 +112,7 @@ public class MysqlCachingStringMapper implements CachingDataMapper<String> {
             return;
         try(
                 PreparedStatement ps = connection.prepareStatement(String.format(
-                        "DELETE FROM %s WHERE value=?;",tableName));
+                        "DELETE FROM %s WHERE value=?;",tableName))
         ) {
             ps.setString(1,s);
             ps.execute();
@@ -126,7 +126,7 @@ public class MysqlCachingStringMapper implements CachingDataMapper<String> {
     public int size() {
         try(
                 PreparedStatement ps = connection.prepareStatement(String.format(
-                        "SELECT COUNT(*) FROM %s;",tableName));
+                        "SELECT COUNT(*) FROM %s;",tableName))
         ) {
             ResultSet resultSet = ps.executeQuery();
             if(resultSet.next())
@@ -135,5 +135,10 @@ public class MysqlCachingStringMapper implements CachingDataMapper<String> {
             e.printStackTrace();
         }
         return -1;
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        connection.close();
     }
 }
